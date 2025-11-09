@@ -3,10 +3,13 @@ import { google } from "googleapis"
 
 export async function POST(request: NextRequest) {
   try {
-    const { fileId } = await request.json()
+    const { fileId, nombre, code1, code2 } = await request.json()
 
-    if (!fileId) {
-      return NextResponse.json({ error: "File ID is required" }, { status: 400 })
+    if (!fileId || !nombre || !code1 || !code2) {
+      return NextResponse.json(
+        { error: "File ID, nombre, code1, and code2 are required" },
+        { status: 400 }
+      )
     }
 
     // Load service account credentials from environment variable
@@ -24,28 +27,24 @@ export async function POST(request: NextRequest) {
     // Authenticate with Google Sheets API
     const auth = new google.auth.GoogleAuth({
       credentials: serviceAccountKey,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     })
 
     const sheets = google.sheets({ version: "v4", auth })
 
-    // Get spreadsheet data
-    const response = await sheets.spreadsheets.values.get({
+    // Append new row to the spreadsheet
+    await sheets.spreadsheets.values.append({
       spreadsheetId: fileId,
       range: "A:C",
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [[nombre, code1, code2]],
+      },
     })
 
-    const rows = response.data.values || []
-
-    const data = rows.slice(1).map((row) => ({
-      nombre: row[0] || "",
-      code1: row[1] || "",
-      code2: row[2] || "",
-    }))
-
-    return NextResponse.json({ data })
+    return NextResponse.json({ success: true })
   } catch (error: any) {
-    console.error("Error fetching sheet data:", error)
+    console.error("Error adding code:", error)
     return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 })
   }
 }

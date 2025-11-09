@@ -16,8 +16,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
-.env*
+# env files (but allow .env.example)
+.env
+.env*.local
+.env.development
+.env.test
+.env.production
 
 # service account credentials
 service-account.json

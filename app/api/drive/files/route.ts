@@ -1,7 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { google } from "googleapis"
-import path from "path"
-import fs from "fs"
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,9 +9,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Folder ID is required" }, { status: 400 })
     }
 
-    // Load service account credentials
-    const serviceAccountPath = path.join(process.cwd(), "service-account.json")
-    const serviceAccountKey = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"))
+    // Load service account credentials from environment variable
+    const serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_KEY
+
+    if (!serviceAccountJson) {
+      return NextResponse.json(
+        { error: "Service account credentials not configured" },
+        { status: 500 }
+      )
+    }
+
+    const serviceAccountKey = JSON.parse(serviceAccountJson)
 
     // Authenticate with Google Drive API
     const auth = new google.auth.GoogleAuth({
