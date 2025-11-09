@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     const sheetData = await response.json()
     const rows = sheetData.values || []
 
-    const data = rows.slice(1).map((row) => ({
+    const data = rows.slice(1).map((row: any) => ({
       nombre: row[0] || "",
       code1: row[1] || "",
       code2: row[2] || "",
