@@ -1,4 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { google } from "googleapis"
+import { cookies } from "next/headers"
+
+const GOOGLE_CLIENT_ID = "134874716533-oodke5dtlt3e13dl785oocudl9p4q7uq.apps.googleusercontent.com"
+const GOOGLE_CLIENT_SECRET = "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"
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,44 +13,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File ID is required" }, { status: 400 })
     }
 
-    // Simulated response - En producción, esto debería usar la Google Sheets API
-    // Ejemplo de datos simulados
-    const mockData = [
-      { nombre: "Juan Pérez", codigo: "JP001" },
-      { nombre: "María González", codigo: "MG002" },
-      { nombre: "Carlos Rodríguez", codigo: "CR003" },
-      { nombre: "Ana Martínez", codigo: "AM004" },
-      { nombre: "Luis Sánchez", codigo: "LS005" },
-      { nombre: "Laura Fernández", codigo: "LF006" },
-      { nombre: "Pedro López", codigo: "PL007" },
-      { nombre: "Sofía Ramírez", codigo: "SR008" },
-      { nombre: "Diego Torres", codigo: "DT009" },
-      { nombre: "Valentina Castro", codigo: "VC010" },
-    ]
+    const cookieStore = await cookies()
+    const accessToken = cookieStore.get("google_access_token")?.value
 
-    // Aquí deberías implementar la llamada real a Google Sheets API:
-    /*
-    const { google } = require('googleapis')
-    const auth = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI
-    )
-    
-    const sheets = google.sheets({ version: 'v4', auth })
+    if (!accessToken) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+    }
+
+    const oauth2Client = new google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
+    oauth2Client.setCredentials({ access_token: accessToken })
+
+    const sheets = google.sheets({ version: "v4", auth: oauth2Client })
+
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: fileId,
-      range: 'A:B', // Columnas A y B (nombre y código)
+      range: "A:B",
     })
-    
-    const rows = response.data.values || []
-    const data = rows.slice(1).map(row => ({
-      nombre: row[0] || '',
-      codigo: row[1] || '',
-    }))
-    */
 
-    return NextResponse.json({ data: mockData })
+    const rows = response.data.values || []
+
+    // Skip header row and map to nombre/codigo format
+    const data = rows.slice(1).map((row) => ({
+      nombre: row[0] || "",
+      codigo: row[1] || "",
+    }))
+
+    return NextResponse.json({ data })
   } catch (error: any) {
     console.error("Error fetching sheet data:", error)
     return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 })
