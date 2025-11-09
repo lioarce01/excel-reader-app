@@ -6,9 +6,9 @@ export async function POST(request: NextRequest) {
   try {
     const { fileId, nombre, code1, code2, buildFileContent } = await request.json()
 
-    if (!fileId || !nombre || !code1 || !code2 || !buildFileContent) {
+    if (!fileId || !nombre || !buildFileContent) {
       return NextResponse.json(
-        { error: "File ID, nombre, code1, code2, and build file are required" },
+        { error: "File ID, nombre, and build file are required" },
         { status: 400 }
       )
     }
@@ -22,6 +22,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Use codes from parsed file if available, otherwise use codes from request
+    // Priority: parsed file codes > request codes
+    const finalCode1 = parseResult.data.code1 || code1 || ""
+    const finalCode2 = parseResult.data.code2 || code2 || ""
 
     // Convert build data to JSON string for storage
     const buildJson = JSON.stringify(parseResult.data)
@@ -52,7 +57,7 @@ export async function POST(request: NextRequest) {
       range: "A:D",
       valueInputOption: "USER_ENTERED",
       requestBody: {
-        values: [[nombre, code1, code2, buildJson]],
+        values: [[nombre, finalCode1, finalCode2, buildJson]],
       },
     })
 

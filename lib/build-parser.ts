@@ -21,6 +21,8 @@ export function parseBuildFile(content: string): ParsedBuildResult {
     let level = 0
     let playedVersion = ""
     let compatibleVersion = ""
+    let code1 = ""
+    let code2 = ""
 
     for (const content of preloadContents) {
       if (content.startsWith("User Name:")) {
@@ -36,6 +38,16 @@ export function parseBuildFile(content: string): ParsedBuildResult {
         playedVersion = content.replace("Played Version:", "").trim()
       } else if (content.startsWith("Compatible Version:")) {
         compatibleVersion = content.replace("Compatible Version:", "").trim()
+      } else if (content.startsWith("Load Code 1:")) {
+        const codeMatch = content.match(/Load Code 1:\s*-load\s+(.+)/)
+        if (codeMatch) {
+          code1 = codeMatch[1].trim()
+        }
+      } else if (content.startsWith("Load Code 2:")) {
+        const codeMatch = content.match(/Load Code 2:\s*-load\s+(.+)/)
+        if (codeMatch) {
+          code2 = codeMatch[1].trim()
+        }
       }
     }
 
@@ -95,6 +107,8 @@ export function parseBuildFile(content: string): ParsedBuildResult {
       hero_inventory: heroInventory,
       bag,
       storage,
+      code1,
+      code2,
     }
 
     return {

@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Loader2, Plus, Search, Upload, FileText, X } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import type { BuildData } from "@/types/build"
+import { parseBuildFile } from "@/lib/build-parser"
 
 // Hardcoded file ID
 const FILE_ID = "1mIUk2iWeqwTedupPo5vMo2NwsbWEM2hqQoqOmKG471A"
@@ -80,6 +81,25 @@ export default function Home() {
     reader.onload = (e) => {
       const content = e.target?.result as string
       setBuildFileContent(content)
+      
+      // Parse the file to extract code1 and code2 automatically
+      const parseResult = parseBuildFile(content)
+      if (parseResult.success && parseResult.data) {
+        // Auto-fill code1 and code2 from the parsed file
+        // Always use the codes from the file (even if empty) to replace any previous values
+        setNewCode(prev => ({
+          ...prev,
+          code1: parseResult.data!.code1 || "",
+          code2: parseResult.data!.code2 || "",
+        }))
+      } else {
+        // If parsing fails, clear the codes
+        setNewCode(prev => ({
+          ...prev,
+          code1: "",
+          code2: "",
+        }))
+      }
     }
     reader.readAsText(file)
   }
@@ -104,8 +124,8 @@ export default function Home() {
   }
 
   const handleAddCode = async () => {
-    if (!newCode.nombre.trim() || !newCode.code1.trim() || !newCode.code2.trim()) {
-      setError("Por favor completa todos los campos")
+    if (!newCode.nombre.trim()) {
+      setError("Por favor ingresa un nombre")
       return
     }
 
@@ -124,8 +144,8 @@ export default function Home() {
         body: JSON.stringify({
           fileId: FILE_ID,
           nombre: newCode.nombre,
-          code1: newCode.code1,
-          code2: newCode.code2,
+          code1: newCode.code1 || "",
+          code2: newCode.code2 || "",
           buildFileContent,
         }),
       })
@@ -316,19 +336,23 @@ export default function Home() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="code1">Code 1</Label>
+                    <Label htmlFor="code1">
+                      Code 1 <span className="text-xs text-muted-foreground font-normal">(opcional - se extrae automáticamente)</span>
+                    </Label>
                     <Input
                       id="code1"
-                      placeholder="Código 1"
+                      placeholder="Se extraerá automáticamente del archivo..."
                       value={newCode.code1}
                       onChange={(e) => setNewCode({ ...newCode, code1: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="code2">Code 2</Label>
+                    <Label htmlFor="code2">
+                      Code 2 <span className="text-xs text-muted-foreground font-normal">(opcional - se extrae automáticamente)</span>
+                    </Label>
                     <Input
                       id="code2"
-                      placeholder="Código 2"
+                      placeholder="Se extraerá automáticamente del archivo..."
                       value={newCode.code2}
                       onChange={(e) => setNewCode({ ...newCode, code2: e.target.value })}
                     />
@@ -337,7 +361,7 @@ export default function Home() {
 
                 {/* Build File Upload */}
                 <div className="space-y-2">
-                  <Label>Build File (archivo .txt)</Label>
+                  <Label>Build File (archivo .txt) <span className="text-xs text-muted-foreground font-normal">- Los códigos se extraerán automáticamente</span></Label>
                   <div
                     className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
                       isDragging
@@ -360,6 +384,8 @@ export default function Home() {
                           onClick={() => {
                             setBuildFile(null)
                             setBuildFileContent("")
+                            // Clear code1 and code2 when file is removed
+                            setNewCode(prev => ({ ...prev, code1: "", code2: "" }))
                           }}
                         >
                           <X className="h-4 w-4" />

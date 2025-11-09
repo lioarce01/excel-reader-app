@@ -7,6 +7,8 @@ export interface BuildData {
   hero_inventory: string[]
   bag: string[]
   storage: string[]
+  code1: string
+  code2: string
 }
 
 export interface ParsedBuildResult {
