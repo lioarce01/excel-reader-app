@@ -6,10 +6,11 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, Plus, Search, Upload, FileText, X } from "lucide-react"
+import { Loader2, Plus, Search, Upload, FileText, X, CheckCircle2, AlertCircle } from "lucide-react"
 import { DataTable } from "@/components/data-table"
 import type { BuildData } from "@/types/build"
 import { parseBuildFile } from "@/lib/build-parser"
+import { toast } from "sonner"
 
 // Hardcoded file ID
 const FILE_ID = "1mIUk2iWeqwTedupPo5vMo2NwsbWEM2hqQoqOmKG471A"
@@ -30,8 +31,12 @@ export default function Home() {
   const [newCode, setNewCode] = useState({ nombre: "", code1: "", code2: "" })
   const [buildFile, setBuildFile] = useState<File | null>(null)
   const [buildFileContent, setBuildFileContent] = useState<string>("")
+  const [parsedBuild, setParsedBuild] = useState<BuildData | null>(null)
   const [addingCode, setAddingCode] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  
+  // Filter state
+  const [classFilter, setClassFilter] = useState<string>("")
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -85,20 +90,30 @@ export default function Home() {
       // Parse the file to extract code1 and code2 automatically
       const parseResult = parseBuildFile(content)
       if (parseResult.success && parseResult.data) {
-        // Auto-fill code1 and code2 from the parsed file
-        // Always use the codes from the file (even if empty) to replace any previous values
+        const buildData = parseResult.data
+        setParsedBuild(buildData)
+        
+        // Auto-fill code1, code2, and nombre (username) from the parsed file
         setNewCode(prev => ({
-          ...prev,
-          code1: parseResult.data!.code1 || "",
-          code2: parseResult.data!.code2 || "",
+          nombre: prev.nombre || buildData.username || "",
+          code1: buildData.code1 || "",
+          code2: buildData.code2 || "",
         }))
+        
+        toast.success("Archivo parseado correctamente", {
+          description: `Clase: ${buildData.class} - Nivel: ${buildData.level}`,
+        })
       } else {
-        // If parsing fails, clear the codes
+        // If parsing fails, clear the codes and show error
+        setParsedBuild(null)
         setNewCode(prev => ({
           ...prev,
           code1: "",
           code2: "",
         }))
+        toast.error("Error al parsear el archivo", {
+          description: parseResult.error || "Formato de archivo inválido",
+        })
       }
     }
     reader.readAsText(file)
@@ -162,8 +177,17 @@ export default function Home() {
       setNewCode({ nombre: "", code1: "", code2: "" })
       setBuildFile(null)
       setBuildFileContent("")
+      setParsedBuild(null)
+      
+      toast.success("Código agregado exitosamente", {
+        description: `"${newCode.nombre}" ha sido agregado a la base de datos`,
+      })
     } catch (err: any) {
-      setError(err.message || "Error al agregar el código")
+      const errorMessage = err.message || "Error al agregar el código"
+      setError(errorMessage)
+      toast.error("Error al agregar el código", {
+        description: errorMessage,
+      })
     } finally {
       setAddingCode(false)
     }
@@ -185,17 +209,42 @@ export default function Home() {
       }
 
       // Update UI immediately
+      const deletedItem = sheetData[index]
       const newData = sheetData.filter((_, i) => i !== index)
       setSheetData(newData)
+      
+      toast.success("Código eliminado", {
+        description: `"${deletedItem.nombre}" ha sido eliminado`,
+      })
     } catch (err: any) {
-      setError(err.message || "Error al eliminar el código")
+      const errorMessage = err.message || "Error al eliminar el código"
+      setError(errorMessage)
+      toast.error("Error al eliminar el código", {
+        description: errorMessage,
+      })
     }
   }
 
-  // Filter data based on search term
-  const filteredData = sheetData.filter((row) =>
-    row.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Filter data based on search term and class filter
+  const filteredData = sheetData.filter((row) => {
+    const matchesSearch = row.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      row.build?.class.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesClass = !classFilter || row.build?.class === classFilter
+    return matchesSearch && matchesClass
+  })
+
+  // Get unique classes for filter
+  const uniqueClasses = Array.from(new Set(sheetData.map(row => row.build?.class).filter(Boolean))) as string[]
+  
+  // Calculate statistics
+  const stats = {
+    total: sheetData.length,
+    byClass: uniqueClasses.reduce((acc, cls) => {
+      acc[cls] = sheetData.filter(row => row.build?.class === cls).length
+      return acc
+    }, {} as Record<string, number>),
+    withBuild: sheetData.filter(row => row.build !== null).length,
+  }
 
   // Pagination logic on filtered data
   const totalPages = Math.ceil(filteredData.length / itemsPerPage)
@@ -241,26 +290,93 @@ export default function Home() {
 
           {/* Tab: Ver Códigos */}
           <TabsContent value="view" className="space-y-6">
+            {/* Statistics */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-2xl font-bold">{stats.total}</div>
+                  <p className="text-xs text-muted-foreground">Total de códigos</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-2xl font-bold">{stats.withBuild}</div>
+                  <p className="text-xs text-muted-foreground">Con build completo</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-2xl font-bold">{uniqueClasses.length}</div>
+                  <p className="text-xs text-muted-foreground">Clases únicas</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-2xl font-bold">{filteredData.length}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {searchTerm || classFilter ? "Resultados" : "Mostrando"}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
             <Card>
               <CardHeader>
                 <CardTitle>Códigos Zawardo</CardTitle>
-                <CardDescription>Total de códigos: {searchTerm ? `${filteredData.length} de ${sheetData.length}` : sheetData.length}</CardDescription>
+                <CardDescription>
+                  {searchTerm || classFilter 
+                    ? `Mostrando ${filteredData.length} de ${sheetData.length} códigos`
+                    : `Total de códigos: ${sheetData.length}`
+                  }
+                </CardDescription>
               </CardHeader>
 
               <CardContent>
-                {/* Search Bar */}
-                <div className="mb-4 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Buscar por nombre..."
-                    value={searchTerm}
-                    onChange={(e) => {
-                      setSearchTerm(e.target.value)
-                      setCurrentPage(1)
-                    }}
-                    className="pl-10"
-                  />
+                {/* Search Bar and Filters */}
+                <div className="mb-4 space-y-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Buscar por nombre o clase..."
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value)
+                        setCurrentPage(1)
+                      }}
+                      className="pl-10"
+                    />
+                  </div>
+                  
+                  {/* Class Filter */}
+                  {uniqueClasses.length > 0 && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm text-muted-foreground">Filtrar por clase:</span>
+                      <Button
+                        variant={classFilter === "" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setClassFilter("")
+                          setCurrentPage(1)
+                        }}
+                      >
+                        Todas
+                      </Button>
+                      {uniqueClasses.map((cls) => (
+                        <Button
+                          key={cls}
+                          variant={classFilter === cls ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            setClassFilter(cls)
+                            setCurrentPage(1)
+                          }}
+                        >
+                          {cls}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <DataTable
@@ -384,8 +500,9 @@ export default function Home() {
                           onClick={() => {
                             setBuildFile(null)
                             setBuildFileContent("")
-                            // Clear code1 and code2 when file is removed
-                            setNewCode(prev => ({ ...prev, code1: "", code2: "" }))
+                            setParsedBuild(null)
+                            // Clear code1 and code2 when file is removed, but keep nombre
+                            setNewCode(prev => ({ nombre: prev.nombre, code1: "", code2: "" }))
                           }}
                         >
                           <X className="h-4 w-4" />
@@ -414,6 +531,39 @@ export default function Home() {
                     )}
                   </div>
                 </div>
+
+                {/* Build Preview */}
+                {parsedBuild && (
+                  <div className="p-4 bg-muted/50 rounded-lg border border-primary/20">
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      <h3 className="font-semibold">Preview del Build</h3>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Usuario</p>
+                        <p className="font-medium">{parsedBuild.username}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Clase</p>
+                        <p className="font-medium">{parsedBuild.class}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Nivel</p>
+                        <p className="font-medium">{parsedBuild.level}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Items</p>
+                        <p className="font-medium">
+                          {parsedBuild.hero_inventory.length + parsedBuild.bag.length + parsedBuild.storage.length} total
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-border/50 text-xs text-muted-foreground">
+                      <p>Inventory: {parsedBuild.hero_inventory.length} | Bag: {parsedBuild.bag.length} | Storage: {parsedBuild.storage.length}</p>
+                    </div>
+                  </div>
+                )}
 
                 <Button onClick={handleAddCode} disabled={addingCode} className="w-full" size="lg">
                   {addingCode ? (
