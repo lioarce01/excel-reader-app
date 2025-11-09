@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-
-const GOOGLE_API_KEY = "AIzaSyC8j4nxZ-g4yXoBOqZNPAXK2fNhYsRZl_c"
+import { google } from "googleapis"
+import path from "path"
+import fs from "fs"
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,23 +11,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File ID is required" }, { status: 400 })
     }
 
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/A:C?key=${GOOGLE_API_KEY}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
-    )
+    // Load service account credentials
+    const serviceAccountPath = path.join(process.cwd(), "service-account.json")
+    const serviceAccountKey = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"))
 
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error?.message || "Error fetching spreadsheet data")
-    }
+    // Authenticate with Google Sheets API
+    const auth = new google.auth.GoogleAuth({
+      credentials: serviceAccountKey,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+    })
 
-    const sheetData = await response.json()
-    const rows = sheetData.values || []
+    const sheets = google.sheets({ version: "v4", auth })
+
+    // Get spreadsheet data
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: fileId,
+      range: "A:C",
+    })
+
+    const rows = response.data.values || []
 
     const data = rows.slice(1).map((row) => ({
       nombre: row[0] || "",
