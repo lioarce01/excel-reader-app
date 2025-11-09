@@ -1,9 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { google } from "googleapis"
-import { cookies } from "next/headers"
 
-const GOOGLE_CLIENT_ID = "134874716533-oodke5dtlt3e13dl785oocudl9p4q7uq.apps.googleusercontent.com"
-const GOOGLE_CLIENT_SECRET = "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"
+const GOOGLE_API_KEY = "AIzaSyC8j4nxZ-g4yXoBOqZNPAXK2fNhYsRZl_c"
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,29 +10,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File ID is required" }, { status: 400 })
     }
 
-    const cookieStore = await cookies()
-    const accessToken = cookieStore.get("google_access_token")?.value
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/A:C?key=${GOOGLE_API_KEY}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    )
 
-    if (!accessToken) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error?.message || "Error fetching spreadsheet data")
     }
 
-    const oauth2Client = new google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
-    oauth2Client.setCredentials({ access_token: accessToken })
+    const sheetData = await response.json()
+    const rows = sheetData.values || []
 
-    const sheets = google.sheets({ version: "v4", auth: oauth2Client })
-
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: fileId,
-      range: "A:B",
-    })
-
-    const rows = response.data.values || []
-
-    // Skip header row and map to nombre/codigo format
     const data = rows.slice(1).map((row) => ({
       nombre: row[0] || "",
-      codigo: row[1] || "",
+      code1: row[1] || "",
+      code2: row[2] || "",
     }))
 
     return NextResponse.json({ data })

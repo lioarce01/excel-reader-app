@@ -13,7 +13,7 @@ export default function Home() {
   const [folderId, setFolderId] = useState("")
   const [files, setFiles] = useState<any[]>([])
   const [selectedFile, setSelectedFile] = useState<any>(null)
-  const [sheetData, setSheetData] = useState<{ nombre: string; codigo: string }[]>([])
+  const [sheetData, setSheetData] = useState<{ nombre: string; code1: string; code2: string }[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(false)
   const [error, setError] = useState("")
@@ -230,7 +230,7 @@ export default function Home() {
           <Card className="mt-6">
             <CardHeader>
               <CardTitle>Contenido: {selectedFile.name}</CardTitle>
-              <CardDescription>Columnas: Nombre y Código</CardDescription>
+              <CardDescription>Columnas: Nombre, Code 1 y Code 2</CardDescription>
             </CardHeader>
             <CardContent>
               <DataTable data={sheetData} loading={loadingData} />

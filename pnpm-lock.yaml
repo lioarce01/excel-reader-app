@@ -114,7 +114,7 @@ importers:
         specifier: 8.5.1
         version: 8.5.1(react@19.2.0)
       googleapis:
-        specifier: latest
+        specifier: 165.0.0
         version: 165.0.0
       input-otp:
         specifier: 1.4.1
