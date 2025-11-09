@@ -15,8 +15,13 @@ interface DataTableProps {
 export function DataTable({ data, loading }: DataTableProps) {
   const [copiedIndex, setCopiedIndex] = useState<string | null>(null)
 
+  const truncateCode = (code: string, maxLength: number = 25) => {
+    if (code.length <= maxLength) return code
+    return code.substring(0, maxLength) + "..."
+  }
+
   const handleCopy = async (text: string, index: string) => {
-    await navigator.clipboard.writeText(text)
+    await navigator.clipboard.writeText(`-load ${text}`)
     setCopiedIndex(index)
     setTimeout(() => setCopiedIndex(null), 2000)
   }
@@ -59,8 +64,8 @@ export function DataTable({ data, loading }: DataTableProps) {
                 <TableCell className="font-medium">{row.nombre}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="font-mono flex-1">
-                      {row.code1}
+                    <Badge variant="secondary" className="font-mono flex-1" title={row.code1}>
+                      {truncateCode(row.code1)}
                     </Badge>
                     <Button
                       size="sm"
@@ -78,8 +83,8 @@ export function DataTable({ data, loading }: DataTableProps) {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="font-mono flex-1">
-                      {row.code2}
+                    <Badge variant="secondary" className="font-mono flex-1" title={row.code2}>
+                      {truncateCode(row.code2)}
                     </Badge>
                     <Button
                       size="sm"
