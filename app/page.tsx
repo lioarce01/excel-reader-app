@@ -235,16 +235,6 @@ export default function Home() {
 
   // Get unique classes for filter
   const uniqueClasses = Array.from(new Set(sheetData.map(row => row.build?.class).filter(Boolean))) as string[]
-  
-  // Calculate statistics
-  const stats = {
-    total: sheetData.length,
-    byClass: uniqueClasses.reduce((acc, cls) => {
-      acc[cls] = sheetData.filter(row => row.build?.class === cls).length
-      return acc
-    }, {} as Record<string, number>),
-    withBuild: sheetData.filter(row => row.build !== null).length,
-  }
 
   // Pagination logic on filtered data
   const totalPages = Math.ceil(filteredData.length / itemsPerPage)
@@ -290,36 +280,6 @@ export default function Home() {
 
           {/* Tab: Ver Códigos */}
           <TabsContent value="view" className="space-y-6">
-            {/* Statistics */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold">{stats.total}</div>
-                  <p className="text-xs text-muted-foreground">Total de códigos</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold">{stats.withBuild}</div>
-                  <p className="text-xs text-muted-foreground">Con build completo</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold">{uniqueClasses.length}</div>
-                  <p className="text-xs text-muted-foreground">Clases únicas</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold">{filteredData.length}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {searchTerm || classFilter ? "Resultados" : "Mostrando"}
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
             <Card>
               <CardHeader>
                 <CardTitle>Códigos Zawardo</CardTitle>
