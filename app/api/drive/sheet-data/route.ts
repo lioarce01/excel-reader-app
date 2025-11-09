@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { google } from "googleapis"
+import type { BuildData } from "@/types/build"
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,19 +30,33 @@ export async function POST(request: NextRequest) {
 
     const sheets = google.sheets({ version: "v4", auth })
 
-    // Get spreadsheet data
+    // Get spreadsheet data including build column (D)
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: fileId,
-      range: "A:C",
+      range: "A:D",
     })
 
     const rows = response.data.values || []
 
-    const data = rows.slice(1).map((row) => ({
-      nombre: row[0] || "",
-      code1: row[1] || "",
-      code2: row[2] || "",
-    }))
+    const data = rows.slice(1).map((row) => {
+      let build: BuildData | null = null
+
+      // Parse build JSON if exists
+      if (row[3]) {
+        try {
+          build = JSON.parse(row[3])
+        } catch (error) {
+          console.error("Error parsing build JSON:", error)
+        }
+      }
+
+      return {
+        nombre: row[0] || "",
+        code1: row[1] || "",
+        code2: row[2] || "",
+        build,
+      }
+    })
 
     return NextResponse.json({ data })
   } catch (error: any) {

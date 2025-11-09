@@ -6,20 +6,31 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, Plus, Search } from "lucide-react"
+import { Loader2, Plus, Search, Upload, FileText, X } from "lucide-react"
 import { DataTable } from "@/components/data-table"
+import type { BuildData } from "@/types/build"
 
 // Hardcoded file ID
 const FILE_ID = "1mIUk2iWeqwTedupPo5vMo2NwsbWEM2hqQoqOmKG471A"
 
+interface SheetRow {
+  nombre: string
+  code1: string
+  code2: string
+  build: BuildData | null
+}
+
 export default function Home() {
-  const [sheetData, setSheetData] = useState<{ nombre: string; code1: string; code2: string }[]>([])
+  const [sheetData, setSheetData] = useState<SheetRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
   // New code form state
   const [newCode, setNewCode] = useState({ nombre: "", code1: "", code2: "" })
+  const [buildFile, setBuildFile] = useState<File | null>(null)
+  const [buildFileContent, setBuildFileContent] = useState<string>("")
   const [addingCode, setAddingCode] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -56,9 +67,50 @@ export default function Home() {
     }
   }
 
+  const handleFileChange = async (file: File) => {
+    if (!file.name.endsWith('.txt')) {
+      setError("Por favor selecciona un archivo .txt")
+      return
+    }
+
+    setBuildFile(file)
+
+    // Read file content
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const content = e.target?.result as string
+      setBuildFileContent(content)
+    }
+    reader.readAsText(file)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+
+    const files = e.dataTransfer.files
+    if (files.length > 0) {
+      handleFileChange(files[0])
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = () => {
+    setIsDragging(false)
+  }
+
   const handleAddCode = async () => {
     if (!newCode.nombre.trim() || !newCode.code1.trim() || !newCode.code2.trim()) {
       setError("Por favor completa todos los campos")
+      return
+    }
+
+    if (!buildFileContent) {
+      setError("Por favor selecciona un archivo de build")
       return
     }
 
@@ -74,6 +126,7 @@ export default function Home() {
           nombre: newCode.nombre,
           code1: newCode.code1,
           code2: newCode.code2,
+          buildFileContent,
         }),
       })
 
@@ -82,9 +135,13 @@ export default function Home() {
         throw new Error(errorData.error || "Error al agregar el código")
       }
 
-      // Update UI immediately
-      setSheetData([...sheetData, { ...newCode }])
+      // Reload data to get the new entry with parsed build
+      await loadSheetData()
+
+      // Reset form
       setNewCode({ nombre: "", code1: "", code2: "" })
+      setBuildFile(null)
+      setBuildFileContent("")
     } catch (err: any) {
       setError(err.message || "Error al agregar el código")
     } finally {
@@ -115,7 +172,6 @@ export default function Home() {
     }
   }
 
-  // Pagination logic
   // Filter data based on search term
   const filteredData = sheetData.filter((row) =>
     row.nombre.toLowerCase().includes(searchTerm.toLowerCase())
@@ -278,6 +334,61 @@ export default function Home() {
                     />
                   </div>
                 </div>
+
+                {/* Build File Upload */}
+                <div className="space-y-2">
+                  <Label>Build File (archivo .txt)</Label>
+                  <div
+                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                      isDragging
+                        ? "border-primary bg-primary/5"
+                        : "border-muted-foreground/25 hover:border-muted-foreground/50"
+                    }`}
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                  >
+                    {buildFile ? (
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-5 w-5 text-primary" />
+                          <span className="text-sm font-medium">{buildFile.name}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setBuildFile(null)
+                            setBuildFileContent("")
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+                        <div className="text-sm text-muted-foreground">
+                          Arrastra tu archivo .txt aquí o{" "}
+                          <label className="text-primary hover:underline cursor-pointer">
+                            haz click para seleccionar
+                            <input
+                              type="file"
+                              accept=".txt"
+                              className="hidden"
+                              onChange={(e) => {
+                                if (e.target.files?.[0]) {
+                                  handleFileChange(e.target.files[0])
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <Button onClick={handleAddCode} disabled={addingCode} className="w-full" size="lg">
                   {addingCode ? (
                     <>
